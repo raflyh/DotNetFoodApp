@@ -52,24 +52,25 @@ namespace UserService.Models
                 entity.ToTable("Food");
 
                 entity.Property(e => e.Name).HasMaxLength(50);
+
+                entity.HasOne(d => d.Order)
+                    .WithMany(p => p.Foods)
+                    .HasForeignKey(d => d.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_Food_Order");
             });
 
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.ToTable("Order");
 
-                entity.HasIndex(e => e.FoodId, "IX_Order_FoodId");
-
                 entity.HasIndex(e => e.UserId, "IX_Order_UserId");
+
+                entity.Property(e => e.Code).HasMaxLength(50);
 
                 entity.Property(e => e.Created).HasColumnType("datetime");
 
                 entity.Property(e => e.Status).HasMaxLength(50);
-
-                entity.HasOne(d => d.Food)
-                    .WithMany(p => p.Orders)
-                    .HasForeignKey(d => d.FoodId)
-                    .HasConstraintName("FK_Order_Food");
 
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.Orders)

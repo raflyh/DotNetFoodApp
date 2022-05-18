@@ -84,47 +84,57 @@ namespace UserService.GraphQL
 
         [Authorize(Roles = new[] { "ADMIN" })]
         public async Task<TransactionStatus> UpdateUserAsync(
-            RegisterUser input,
+            int id,
+            UpdateUser input,
             [Service] DotNetFoodDbContext context)
         {
-            var user = context.Users.Where(o => o.Id == input.Id).FirstOrDefault();
-            if (user != null)
+            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            if (user == null)
             {
                 return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
             }
-            var newUser = new User
-            {
-                Id = user.Id,
-                Updated = DateTime.Now,
-                Status = input.Status
-            };
-            context.Users.Add(newUser);
+            user.Status = input.Status;
+            user.Updated = DateTime.Now;
+
+            context.Users.Update(user);
 
             await context.SaveChangesAsync();
 
             return await Task.FromResult(new TransactionStatus
             (
-                true, "User Updated"
+                true, "User Status Updated"
             ));
         }
 
         [Authorize(Roles = new[] { "ADMIN" })]
         public async Task<TransactionStatus> DeleteUserAsync(
-            int Id,
+            int id,
             [Service] DotNetFoodDbContext context)
         {
-            var user = context.Users.Where(o => o.Id == Id).FirstOrDefault();
-            if (user != null)
+            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            if (user == null)
             {
                 return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
             }
-            context.Users.Remove(user);
+            if (user.Status == "BLOCKED")
+            {
+                context.Users.Remove(user);
+                await context.SaveChangesAsync();
+                return await Task.FromResult(new TransactionStatus
+            (
+                true, "User Deleted"
+            ));
+            }
+            user.Status = "BLOCKED";
+            user.Updated = DateTime.Now;
+
+            context.Users.Update(user);
 
             await context.SaveChangesAsync();
 
             return await Task.FromResult(new TransactionStatus
             (
-                true, "User Deleted"
+                true, "User Blocked"
             ));
         }
 
@@ -180,6 +190,10 @@ namespace UserService.GraphQL
             {
                 return await Task.FromResult(new UserToken(null, null, "Username or password was invalid"));
             }
+            if (user.Status == "BLOCKED")
+            {
+                return await Task.FromResult(new UserToken(null, null, "Your Account is Blocked, Please contact the Admin"));
+            }
             bool valid = BCrypt.Net.BCrypt.Verify(input.Password, user.Password);
             if (valid)
             {
@@ -230,15 +244,29 @@ namespace UserService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
             }
-            var newProfile = new Profile
+            var profile = context.Profiles.Where(o => o.UserId == user.Id).FirstOrDefault();
+            if(profile== null)
             {
-                UserId = user.Id,
-                Name = input.Name,
-                Address = input.Address,
-                Phone = input.Phone
-            };
-            context.Profiles.Add(newProfile);
+                var newProfile = new Profile
+                {
+                    UserId = user.Id,
+                    Name = input.Name,
+                    Address = input.Address,
+                    Phone = input.Phone
+                };
+                context.Profiles.Add(newProfile);
 
+                await context.SaveChangesAsync();
+                return await Task.FromResult(new TransactionStatus
+            (
+                true, "Profile Has Been Added"
+            ));
+            }
+            profile.Name = input.Name;
+            profile.Address = input.Address;
+            profile.Phone = input.Phone;
+
+            context.Profiles.Update(profile);
             await context.SaveChangesAsync();
 
             return await Task.FromResult(new TransactionStatus
