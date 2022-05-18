@@ -137,11 +137,121 @@ namespace UserService.GraphQL
                 true, "User Blocked"
             ));
         }
+        //Manager Privilege
+        [Authorize(Roles = new [] {"MANAGER"})]
+        public async Task<TransactionStatus> RegisterCourierAsync(
+            RegisterUser input,
+            [Service] DotNetFoodDbContext context)
+        {
+            var user = context.Users.Where(o => o.Username == input.Username).FirstOrDefault();
+            if (user != null)
+            {
+                return await Task.FromResult(new TransactionStatus(false, "Username already exist, Try another username!"));
+            }
+            var newUser = new User
+            {
+                Email = input.Email,
+                Username = input.Username,
+                Password = BCrypt.Net.BCrypt.HashPassword(input.Password), // encrypt password
+                Created = DateTime.Now,
+                Updated = DateTime.Now,
+                Latitude = (float)input.Latitude,
+                Longitude = (float)input.Longitude,
+                Status = "Free"
+            };
+            var memberRole = context.Roles.Where(m => m.Name == "COURIER").FirstOrDefault();//Role Auto Courier
+            if (memberRole == null)
+                throw new Exception("Invalid Role");
 
+            var userRole = new UserRole
+            {
+                RoleId = memberRole.Id,
+                UserId = newUser.Id
+            };
+            newUser.UserRoles.Add(userRole);
+            context.Users.Add(newUser);
+            await context.SaveChangesAsync();
+
+            return await Task.FromResult(new TransactionStatus
+            (
+                true, $"Register Courier {newUser.Username} Success"
+            ));
+        }
+
+        [Authorize(Roles = new[] { "MANAGER" })]
+        public async Task<TransactionStatus> UpdateCourierAsync(
+            int id,
+            UpdateUser input,
+            [Service] DotNetFoodDbContext context)
+        {
+            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            if (user == null)
+            {
+                return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
+            }
+            var courier = context.UserRoles.Where(o => o.UserId == user.Id && o.RoleId == 4).FirstOrDefault();
+            if (courier != null)
+            {
+                user.Status = input.Status;
+                user.Updated = DateTime.Now;
+
+                context.Users.Update(user);
+
+                await context.SaveChangesAsync();
+
+                return await Task.FromResult(new TransactionStatus
+                (
+                    true, "User Status Updated"
+                ));
+            }
+            return await Task.FromResult(new TransactionStatus
+                (
+                    true, "User Is Not Courier"
+                ));
+        }
+
+        [Authorize(Roles = new[] { "MANAGER" })]
+        public async Task<TransactionStatus> DeleteCourierAsync(
+            int id,
+            [Service] DotNetFoodDbContext context)
+        {
+            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            if (user == null)
+            {
+                return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
+            }
+            var courier = context.UserRoles.Where(o => o.UserId ==user.Id && o.RoleId == 4).FirstOrDefault();
+            if(courier != null)
+            {
+                if (user.Status == "BLOCKED")
+                {
+                    context.Users.Remove(user);
+                    await context.SaveChangesAsync();
+                    return await Task.FromResult(new TransactionStatus
+                (
+                    true, "User Deleted"
+                ));
+                }
+                user.Status = "BLOCKED";
+                user.Updated = DateTime.Now;
+
+                context.Users.Update(user);
+
+                await context.SaveChangesAsync();
+
+                return await Task.FromResult(new TransactionStatus
+                (
+                    true, "User Blocked"
+                ));
+            }
+            return await Task.FromResult(new TransactionStatus
+                (
+                    true, "User Is Not Courier"
+                ));
+        }
         //User Privilege
         public async Task<TransactionStatus> RegisterUserAsync(
             RegisterUser input,
-            ClaimsPrincipal claimsPrincipal,
             [Service] DotNetFoodDbContext context)
         {
             var user = context.Users.Where(o => o.Username == input.Username).FirstOrDefault();
