@@ -1,7 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
-using UserService.Models;
+using OrderService.Models;
 
 Console.WriteLine("Listening....");
 IConfiguration configuration = new ConfigurationBuilder()
@@ -11,12 +11,12 @@ IConfiguration configuration = new ConfigurationBuilder()
 var config = new ConsumerConfig
 {
     BootstrapServers = configuration.GetSection("KafkaSettings").GetSection("Server").Value,
-    GroupId = "tester",
+    GroupId = "DotNetFood",
     AutoOffsetReset = AutoOffsetReset.Earliest
 };
 
 //Connect to Kafka
-var topic = "SubmitOrder";
+
 CancellationTokenSource cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
 {
@@ -24,17 +24,21 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
+var topics = new string[]
+{
+    "Food", "AddOrder", "AcceptOrder", "DeleteOrder"
+};
 using (var consumer = new ConsumerBuilder<string, string>(config).Build())
 {
 
     Console.WriteLine("Connected");
-    consumer.Subscribe(topic);
+    consumer.Subscribe(topics);
     try
     {
         while (true)
         {
             var cr = consumer.Consume(cts.Token);
-            Console.WriteLine($"Consumed record with key: {cr.Message.Key} and value: {cr.Message.Value}");
+            Console.WriteLine($"Consumed record with Topic: {cr.Topic} Key: {cr.Message.Key} and Value: {cr.Message.Value}");
 
             using (var context = new DotNetFoodDbContext())
             {

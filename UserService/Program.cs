@@ -7,17 +7,11 @@ using UserService.Models;
 using UserService.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
-var conString = builder.Configuration.GetConnectionString("MyDatabase");
+var conString = builder.Configuration.GetConnectionString("LocalDatabase");
 builder.Services.AddDbContext<DotNetFoodDbContext>(options =>
      options.UseSqlServer(conString)
 );
 
-// graphql
-builder.Services
-    .AddGraphQLServer()
-    .AddQueryType<Query>()
-    .AddMutationType<Mutation>()
-    .AddAuthorization();
 
 builder.Services.AddControllers();
 // DI Dependency Injection
@@ -42,6 +36,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowOrigin", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
+// graphql
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .ModifyRequestOptions(opt => opt.IncludeExceptionDetails = true)
+    .AddAuthorization();
 
 var app = builder.Build();
 

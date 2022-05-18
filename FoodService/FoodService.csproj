@@ -29,5 +29,8 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\UserService\UserService.csproj" />
 	</ItemGroup>
+	<PropertyGroup>
+		<ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+	</PropertyGroup>
 
 </Project>
