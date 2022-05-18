@@ -19,6 +19,7 @@ namespace UserService.Models
         public virtual DbSet<Balance> Balances { get; set; } = null!;
         public virtual DbSet<Food> Foods { get; set; } = null!;
         public virtual DbSet<Order> Orders { get; set; } = null!;
+        public virtual DbSet<OrderDetail> OrderDetails { get; set; } = null!;
         public virtual DbSet<Profile> Profiles { get; set; } = null!;
         public virtual DbSet<Role> Roles { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
@@ -52,12 +53,6 @@ namespace UserService.Models
                 entity.ToTable("Food");
 
                 entity.Property(e => e.Name).HasMaxLength(50);
-
-                entity.HasOne(d => d.Order)
-                    .WithMany(p => p.Foods)
-                    .HasForeignKey(d => d.OrderId)
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .HasConstraintName("FK_Food_Order");
             });
 
             modelBuilder.Entity<Order>(entity =>
@@ -76,6 +71,25 @@ namespace UserService.Models
                     .WithMany(p => p.Orders)
                     .HasForeignKey(d => d.UserId)
                     .HasConstraintName("FK_Order_User");
+            });
+
+            modelBuilder.Entity<OrderDetail>(entity =>
+            {
+                entity.ToTable("OrderDetail");
+
+                entity.Property(e => e.Created).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Food)
+                    .WithMany(p => p.OrderDetails)
+                    .HasForeignKey(d => d.FoodId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_OrderDetail_Food");
+
+                entity.HasOne(d => d.Order)
+                    .WithMany(p => p.OrderDetails)
+                    .HasForeignKey(d => d.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_OrderDetail_Order");
             });
 
             modelBuilder.Entity<Profile>(entity =>

@@ -7,12 +7,12 @@ namespace UserService.Models
     {
         public Order()
         {
-            Foods = new HashSet<Food>();
+            OrderDetails = new HashSet<OrderDetail>();
         }
 
         public int Id { get; set; }
         public int UserId { get; set; }
-        public string Code { get; set; } = null!;
+        public string? Code { get; set; }
         public double? BuyerLatitude { get; set; }
         public double? BuyerLongitude { get; set; }
         public double? CourierLatitude { get; set; }
@@ -24,6 +24,6 @@ namespace UserService.Models
         public DateTime? Created { get; set; }
 
         public virtual User User { get; set; } = null!;
-        public virtual ICollection<Food> Foods { get; set; }
+        public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }
 }

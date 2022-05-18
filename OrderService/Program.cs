@@ -12,13 +12,6 @@ builder.Services.AddDbContext<DotNetFoodDbContext>(options =>
      options.UseSqlServer(conString)
 );
 
-// graphql
-builder.Services
-    .AddGraphQLServer()
-    .AddQueryType<Query>()
-    .AddMutationType<Mutation>()
-    .AddAuthorization();
-
 builder.Services.AddControllers();
 // DI Dependency Injection
 builder.Services.Configure<TokenSettings>(builder.Configuration.GetSection("TokenSettings"));
@@ -42,6 +35,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowOrigin", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
+// graphql
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .ModifyRequestOptions(opt => opt.IncludeExceptionDetails = true)
+    .AddAuthorization();
 
 var app = builder.Build();
 

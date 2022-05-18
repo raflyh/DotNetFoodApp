@@ -19,6 +19,8 @@ namespace OrderService.Models
         public virtual DbSet<Balance> Balances { get; set; } = null!;
         public virtual DbSet<Food> Foods { get; set; } = null!;
         public virtual DbSet<Order> Orders { get; set; } = null!;
+        public virtual DbSet<OrderDetail> OrderDetails { get; set; } = null!;
+        public virtual DbSet<Profile> Profiles { get; set; } = null!;
         public virtual DbSet<Role> Roles { get; set; } = null!;
         public virtual DbSet<User> Users { get; set; } = null!;
         public virtual DbSet<UserRole> UserRoles { get; set; } = null!;
@@ -28,7 +30,7 @@ namespace OrderService.Models
 //            if (!optionsBuilder.IsConfigured)
 //            {
 //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-//                optionsBuilder.UseSqlServer("Server=host.docker.internal,1433;Database=DotNetFoodDb;uid=rafly;pwd=R4fly@P4ssw0rd;");
+//                optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DotNetFoodDb;uid=rafly;pwd=1234;");
 //            }
         }
 
@@ -38,10 +40,11 @@ namespace OrderService.Models
             {
                 entity.ToTable("Balance");
 
+                entity.HasIndex(e => e.UserId, "IX_Balance_UserId");
+
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.Balances)
                     .HasForeignKey(d => d.UserId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Balance_User");
             });
 
@@ -56,33 +59,55 @@ namespace OrderService.Models
             {
                 entity.ToTable("Order");
 
-                entity.Property(e => e.BuyerLatitude).HasColumnType("decimal(18, 0)");
+                entity.HasIndex(e => e.UserId, "IX_Order_UserId");
 
-                entity.Property(e => e.BuyerLongitude).HasColumnType("decimal(18, 0)");
-
-                entity.Property(e => e.CourierLatitude).HasColumnType("decimal(18, 0)");
-
-                entity.Property(e => e.CourierLongitude).HasColumnType("decimal(18, 0)");
+                entity.Property(e => e.Code).HasMaxLength(50);
 
                 entity.Property(e => e.Created).HasColumnType("datetime");
 
-                entity.Property(e => e.DestinationLatitude).HasColumnType("decimal(18, 0)");
-
-                entity.Property(e => e.DestinationLongitude).HasColumnType("decimal(18, 0)");
-
                 entity.Property(e => e.Status).HasMaxLength(50);
-
-                entity.HasOne(d => d.Food)
-                    .WithMany(p => p.Orders)
-                    .HasForeignKey(d => d.FoodId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK_Order_Food");
 
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.Orders)
                     .HasForeignKey(d => d.UserId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_Order_User");
+            });
+
+            modelBuilder.Entity<OrderDetail>(entity =>
+            {
+                entity.ToTable("OrderDetail");
+
+                entity.Property(e => e.Created).HasColumnType("datetime");
+
+                entity.HasOne(d => d.Food)
+                    .WithMany(p => p.OrderDetails)
+                    .HasForeignKey(d => d.FoodId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_OrderDetail_Food");
+
+                entity.HasOne(d => d.Order)
+                    .WithMany(p => p.OrderDetails)
+                    .HasForeignKey(d => d.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_OrderDetail_Order");
+            });
+
+            modelBuilder.Entity<Profile>(entity =>
+            {
+                entity.ToTable("Profile");
+
+                entity.HasIndex(e => e.UserId, "IX_Profile_UserId");
+
+                entity.Property(e => e.Address).HasMaxLength(50);
+
+                entity.Property(e => e.Name).HasMaxLength(50);
+
+                entity.Property(e => e.Phone).HasMaxLength(50);
+
+                entity.HasOne(d => d.User)
+                    .WithMany(p => p.Profiles)
+                    .HasForeignKey(d => d.UserId)
+                    .HasConstraintName("FK_Profile_User");
             });
 
             modelBuilder.Entity<Role>(entity =>
@@ -100,13 +125,9 @@ namespace OrderService.Models
 
                 entity.Property(e => e.Email).HasMaxLength(50);
 
-                entity.Property(e => e.Fullname).HasMaxLength(50);
-
-                entity.Property(e => e.Latitude).HasColumnType("decimal(18, 0)");
-
-                entity.Property(e => e.Longitude).HasColumnType("decimal(18, 0)");
-
                 entity.Property(e => e.Password).HasColumnType("ntext");
+
+                entity.Property(e => e.Status).HasMaxLength(50);
 
                 entity.Property(e => e.Updated).HasColumnType("datetime");
 
@@ -117,18 +138,18 @@ namespace OrderService.Models
             {
                 entity.ToTable("UserRole");
 
-                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.HasIndex(e => e.RoleId, "IX_UserRole_RoleId");
+
+                entity.HasIndex(e => e.UserId, "IX_UserRole_UserId");
 
                 entity.HasOne(d => d.Role)
                     .WithMany(p => p.UserRoles)
                     .HasForeignKey(d => d.RoleId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_UserRole_Role");
 
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.UserRoles)
                     .HasForeignKey(d => d.UserId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_UserRole_User");
             });
 
