@@ -9,6 +9,7 @@ namespace OrderService.Models
         public int OrderId { get; set; }
         public int FoodId { get; set; }
         public double Quantity { get; set; }
+        public double? Price { get; set; }
         public DateTime? Created { get; set; }
 
         public virtual Food Food { get; set; } = null!;

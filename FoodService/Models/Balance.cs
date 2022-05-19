@@ -9,6 +9,7 @@ namespace FoodService.Models
         public int UserId { get; set; }
         public double BalanceTotal { get; set; }
         public double BalanceMutation { get; set; }
+        public DateTime? Date { get; set; }
 
         public virtual User User { get; set; } = null!;
     }

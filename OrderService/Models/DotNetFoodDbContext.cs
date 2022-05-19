@@ -42,6 +42,8 @@ namespace OrderService.Models
 
                 entity.HasIndex(e => e.UserId, "IX_Balance_UserId");
 
+                entity.Property(e => e.Date).HasColumnType("datetime");
+
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.Balances)
                     .HasForeignKey(d => d.UserId)
@@ -59,7 +61,7 @@ namespace OrderService.Models
             {
                 entity.ToTable("Order");
 
-                entity.HasIndex(e => e.UserId, "IX_Order_UserId");
+                entity.HasIndex(e => e.BuyerId, "IX_Order_UserId");
 
                 entity.Property(e => e.Code).HasMaxLength(50);
 
@@ -67,10 +69,15 @@ namespace OrderService.Models
 
                 entity.Property(e => e.Status).HasMaxLength(50);
 
-                entity.HasOne(d => d.User)
-                    .WithMany(p => p.Orders)
-                    .HasForeignKey(d => d.UserId)
-                    .HasConstraintName("FK_Order_User");
+                entity.HasOne(d => d.Buyer)
+                    .WithMany(p => p.OrderBuyers)
+                    .HasForeignKey(d => d.BuyerId)
+                    .HasConstraintName("FK_Order_Buyer");
+
+                entity.HasOne(d => d.Courier)
+                    .WithMany(p => p.OrderCouriers)
+                    .HasForeignKey(d => d.CourierId)
+                    .HasConstraintName("FK_Order_Courier");
             });
 
             modelBuilder.Entity<OrderDetail>(entity =>

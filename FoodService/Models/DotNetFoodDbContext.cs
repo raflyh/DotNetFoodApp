@@ -42,6 +42,8 @@ namespace FoodService.Models
 
                 entity.HasIndex(e => e.UserId, "IX_Balance_UserId");
 
+                entity.Property(e => e.Date).HasColumnType("datetime");
+
                 entity.HasOne(d => d.User)
                     .WithMany(p => p.Balances)
                     .HasForeignKey(d => d.UserId)
