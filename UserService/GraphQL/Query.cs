@@ -34,9 +34,8 @@ namespace UserService.GraphQL
         [Authorize(Roles = new[] {"MANAGER"})]
         public IQueryable<User> GetCouriers([Service] DotNetFoodDbContext context)
         {
-            var courier = context.Roles.Where(a => a.Name == "COURIER").FirstOrDefault();
-            var courierrole = context.UserRoles.Where(o => o.RoleId == courier.Id).FirstOrDefault();
-            var couriers = context.Users.Include(p => p.Profiles).Where(a => a.UserRoles.Any(o => o.RoleId == courier.Id));
+            var courierRole = context.Roles.Where(a => a.Name == "COURIER").FirstOrDefault();
+            var couriers = context.Users.Include(p => p.Profiles).Where(a => a.UserRoles.Any(o => o.RoleId == courierRole.Id));
             return couriers.AsQueryable();
         }
 

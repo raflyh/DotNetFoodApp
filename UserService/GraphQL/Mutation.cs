@@ -184,30 +184,23 @@ namespace UserService.GraphQL
             UpdateUser input,
             [Service] DotNetFoodDbContext context)
         {
-            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            var courierRole = context.Roles.Where(a => a.Name == "COURIER").FirstOrDefault();
+            var user = context.Users.Where(o => o.Id == id).Where(a => a.UserRoles.Any(o => o.RoleId == courierRole.Id)).FirstOrDefault();
             if (user == null)
             {
-                return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
+                return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
-            var courier = context.UserRoles.Where(o => o.UserId == user.Id && o.RoleId == 4).FirstOrDefault();
-            if (courier != null)
-            {
-                user.Status = input.Status;
-                user.Updated = DateTime.Now;
+            user.Status = input.Status;
+            user.Updated = DateTime.Now;
 
-                context.Users.Update(user);
+            context.Users.Update(user);
 
-                await context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
-                return await Task.FromResult(new TransactionStatus
-                (
-                    true, "User Status Updated"
-                ));
-            }
             return await Task.FromResult(new TransactionStatus
-                (
-                    true, "User Is Not Courier"
-                ));
+            (
+                true, "Courier Status Updated"
+            ));
         }
 
         [Authorize(Roles = new[] { "MANAGER" })]
@@ -215,39 +208,33 @@ namespace UserService.GraphQL
             int id,
             [Service] DotNetFoodDbContext context)
         {
-            var user = context.Users.Where(o => o.Id == id).FirstOrDefault();
+            var courierRole = context.Roles.Where(a => a.Name == "COURIER").FirstOrDefault();
+            var user = context.Users.Where(o => o.Id == id).Where(a => a.UserRoles.Any(o => o.RoleId == courierRole.Id)).FirstOrDefault();
             if (user == null)
             {
-                return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
+                return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
             var courier = context.UserRoles.Where(o => o.UserId ==user.Id && o.RoleId == 4).FirstOrDefault();
-            if(courier != null)
+            if (user.Status == "BLOCKED")
             {
-                if (user.Status == "BLOCKED")
-                {
-                    context.Users.Remove(user);
-                    await context.SaveChangesAsync();
-                    return await Task.FromResult(new TransactionStatus
-                (
-                    true, "User Deleted"
-                ));
-                }
-                user.Status = "BLOCKED";
-                user.Updated = DateTime.Now;
-
-                context.Users.Update(user);
-
+                context.Users.Remove(user);
                 await context.SaveChangesAsync();
-
                 return await Task.FromResult(new TransactionStatus
-                (
-                    true, "User Blocked"
-                ));
+            (
+                true, "Courier Deleted"
+            ));
             }
+            user.Status = "BLOCKED";
+            user.Updated = DateTime.Now;
+
+            context.Users.Update(user);
+
+            await context.SaveChangesAsync();
+
             return await Task.FromResult(new TransactionStatus
-                (
-                    true, "User Is Not Courier"
-                ));
+            (
+                true, "Courier Blocked"
+            ));
         }
         //User Privilege
         public async Task<TransactionStatus> RegisterUserAsync(
@@ -409,6 +396,53 @@ namespace UserService.GraphQL
             (
                 true, "Password is Changed"
             ));
+        }
+
+        [Authorize]
+        public async Task<TransactionStatus> TopUpAsync(
+            TopUpBalance input,
+            ClaimsPrincipal claimsPrincipal,
+            [Service] DotNetFoodDbContext context)
+        {
+            var userName = claimsPrincipal.Identity.Name;
+            var user = context.Users.Where(o => o.Username == userName).FirstOrDefault();
+            if (user == null)
+            {
+                return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
+            }
+            var userBalance = context.Balances.Where(o => o.UserId == user.Id).OrderBy(p => p.Id).LastOrDefault();
+            if (userBalance == null)
+            {
+                var newBalance = new Balance
+                {
+                    UserId = user.Id,
+                    BalanceTotal = input.TopUp,
+                    BalanceMutation = input.TopUp,
+                    Date = DateTime.Now
+                };
+                context.Balances.Add(newBalance);
+
+                await context.SaveChangesAsync();
+                return await Task.FromResult(new TransactionStatus
+                (
+                    true, $"Top Up Success! {input.TopUp} Has Been Added to Your Balance!"
+                ));
+            }
+            var addBalance = new Balance
+            {
+                UserId = user.Id,
+                BalanceTotal = userBalance.BalanceTotal+input.TopUp,
+                BalanceMutation = input.TopUp,
+                Date = DateTime.Now
+            };
+            context.Balances.Add(addBalance);
+
+            await context.SaveChangesAsync();
+            return await Task.FromResult(new TransactionStatus
+            (
+                true, $"Top Up Success! {input.TopUp} Has Been Added to Your Balance!"
+            ));
+
         }
     }
 }
