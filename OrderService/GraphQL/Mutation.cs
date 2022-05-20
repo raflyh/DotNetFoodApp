@@ -20,7 +20,7 @@ namespace OrderService.GraphQL
             var userCoord = new GeoCoordinate(buyer.Latitude, buyer.Longitude);
             var destiCoord = new GeoCoordinate((double)input.DestinationLatitude, (double)input.DestinationLongitude);
             var distance = userCoord.GetDistanceTo(destiCoord) / 1000; //distance in km
-            double pricePerKm = 500; //harga per km
+            double pricePerKm = 3000; //harga per km
             var distancePrice = distance * pricePerKm;
 
             var order = new Order
@@ -58,8 +58,6 @@ namespace OrderService.GraphQL
             {
                 if(buyer.Status == "Free")
                 {
-                    //context.Orders.Add(order);
-
                     var newBalance = new Balance
                     {
                         UserId = buyer.Id,
@@ -119,6 +117,7 @@ namespace OrderService.GraphQL
                 true, "Order Updated"
             ));
         }
+
         [Authorize(Roles = new[] {"MANAGER"})]
         public async Task<TransactionStatus> DeleteOrderAsync(
             int id,
@@ -212,7 +211,7 @@ namespace OrderService.GraphQL
                 return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
 
-            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId == courier.Id && o.Id == id).FirstOrDefault();
+            var order = context.Orders.Where(o => (o.Status == "ACCEPTED" || o.Status.Contains("SENDING")) && o.CourierId == courier.Id && o.Id == id).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
 
             if (order == null)
@@ -223,7 +222,10 @@ namespace OrderService.GraphQL
 
             order.CourierLatitude = input.CourierLatitude;
             order.CourierLongitude = input.CourierLongitude;
-            order.Status = "SENDING";
+            var buyerCoord = new GeoCoordinate((double)order.BuyerLatitude, (double)order.BuyerLongitude);
+            var courierCoord = new GeoCoordinate((double)order.CourierLatitude, (double)order.CourierLongitude);
+            var distance = buyerCoord.GetDistanceTo(courierCoord)/1000;
+            order.Status = $"SENDING, COURIER DISTANCE {distance.ToString("N3")} Km";
             context.Orders.Update(order);
 
             await context.SaveChangesAsync();
@@ -247,7 +249,7 @@ namespace OrderService.GraphQL
                 return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
 
-            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId==courier.Id && o.Id == id).FirstOrDefault();
+            var order = context.Orders.Where(o => o.Status.Contains("SENDING") && o.CourierId==courier.Id && o.Id == id).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
 
             if (order==null)
@@ -305,6 +307,7 @@ namespace OrderService.GraphQL
             
             var order = context.Orders.Where(o => o.Id == id).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
+            var courier = context.Users.Where(o => o.Id == order.CourierId).FirstOrDefault();
             var buyerBalance = context.Balances.Where(o => o.UserId == buyer.Id).OrderBy(o => o.Id).LastOrDefault();
 
             if (order == null)
@@ -325,6 +328,10 @@ namespace OrderService.GraphQL
                         order.Status = "CANCELLED BY COURIER. LOOKING FOR ANOTHER COURIER....";
                         context.Orders.Update(order);
                     }
+                    buyer.Status = "Free";
+                    courier.Status = "Free";
+                    context.Users.Update(buyer);
+                    context.Users.Update(courier);
 
                     var newBalance = new Balance
                     {

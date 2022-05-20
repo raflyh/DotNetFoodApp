@@ -28,5 +28,20 @@ namespace OrderService.GraphQL
             }
             return new List<Order>().AsQueryable();
         }
+
+        [Authorize(Roles = new[] { "BUYER" })]
+        public IQueryable<Order> TrackOrders(ClaimsPrincipal claimsPrincipal, [Service] DotNetFoodDbContext context)
+        {
+            var userName = claimsPrincipal.Identity.Name;
+            var user = context.Users.Where(o => o.Username == userName).FirstOrDefault();
+            if (user != null)
+            {
+                var orders = context.Orders.Include(p => p.OrderDetails).ThenInclude(o => o.Food).Where(a => a.BuyerId == user.Id).OrderBy(o => o.Created).LastOrDefault();
+                var currentOrder = context.Orders.Where(o => o.Id == orders.Id);
+                return currentOrder.AsQueryable();
+            }
+            return new List<Order>().AsQueryable();
+        }
     }
+    
 }
