@@ -6,6 +6,6 @@ namespace OrderService.GraphQL
     (
         double? DestinationLatitude,
         double? DestinationLongitude,
-        List<OrderDetail> OrderDetails
+        List<OrderDetailData> OrderDetails
     );
 }

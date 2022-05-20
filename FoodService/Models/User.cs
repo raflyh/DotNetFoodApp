@@ -8,7 +8,8 @@ namespace FoodService.Models
         public User()
         {
             Balances = new HashSet<Balance>();
-            Orders = new HashSet<Order>();
+            OrderBuyers = new HashSet<Order>();
+            OrderCouriers = new HashSet<Order>();
             Profiles = new HashSet<Profile>();
             UserRoles = new HashSet<UserRole>();
         }
@@ -24,7 +25,8 @@ namespace FoodService.Models
         public string Status { get; set; } = null!;
 
         public virtual ICollection<Balance> Balances { get; set; }
-        public virtual ICollection<Order> Orders { get; set; }
+        public virtual ICollection<Order> OrderBuyers { get; set; }
+        public virtual ICollection<Order> OrderCouriers { get; set; }
         public virtual ICollection<Profile> Profiles { get; set; }
         public virtual ICollection<UserRole> UserRoles { get; set; }
     }

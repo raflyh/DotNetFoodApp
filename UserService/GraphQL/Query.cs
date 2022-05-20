@@ -38,6 +38,15 @@ namespace UserService.GraphQL
             var couriers = context.Users.Include(p => p.Profiles).Where(a => a.UserRoles.Any(o => o.RoleId == courierRole.Id));
             return couriers.AsQueryable();
         }
+        
+        [Authorize]
+        public IQueryable<Balance> GetBalances(ClaimsPrincipal claimsPrincipal, [Service] DotNetFoodDbContext context)
+        {
+            var userName = claimsPrincipal.Identity.Name;
+            var user = context.Users.Where(o => o.Username == userName).FirstOrDefault();
+            var userBalance = context.Balances.Where(u => u.UserId == user.Id);
+            return userBalance.AsQueryable();
+        }
 
     }
 }

@@ -11,7 +11,8 @@ namespace UserService.Models
         }
 
         public int Id { get; set; }
-        public int UserId { get; set; }
+        public int? CourierId { get; set; }
+        public int BuyerId { get; set; }
         public string? Code { get; set; }
         public double? BuyerLatitude { get; set; }
         public double? BuyerLongitude { get; set; }
@@ -23,7 +24,8 @@ namespace UserService.Models
         public double TotalPrice { get; set; }
         public DateTime? Created { get; set; }
 
-        public virtual User User { get; set; } = null!;
+        public virtual User Buyer { get; set; } = null!;
+        public virtual User? Courier { get; set; }
         public virtual ICollection<OrderDetail> OrderDetails { get; set; }
     }
 }

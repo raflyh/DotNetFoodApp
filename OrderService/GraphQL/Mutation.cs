@@ -20,7 +20,7 @@ namespace OrderService.GraphQL
             var userCoord = new GeoCoordinate(buyer.Latitude, buyer.Longitude);
             var destiCoord = new GeoCoordinate((double)input.DestinationLatitude, (double)input.DestinationLongitude);
             var distance = userCoord.GetDistanceTo(destiCoord) / 1000; //distance in km
-            double pricePerKm = 5000; //harga per km
+            double pricePerKm = 500; //harga per km
             var distancePrice = distance * pricePerKm;
 
             var order = new Order
@@ -48,28 +48,41 @@ namespace OrderService.GraphQL
                     FoodId = item.FoodId,
                     Quantity = item.Quantity
                 };
-                foodPrice += detail.Food.Price * detail.Quantity;
+                var food = context.Foods.Where(o => o.Id == detail.FoodId).FirstOrDefault();
                 order.OrderDetails.Add(detail);
+                foodPrice += food.Price * detail.Quantity;
             }
-            order.TotalPrice = distancePrice+foodPrice;
+            order.TotalPrice=distancePrice+foodPrice;
+            context.Orders.Add(order);
             if (buyerBalance.BalanceTotal >= order.TotalPrice)
             {
-                context.Orders.Add(order);
-
-                var newBalance = new Balance
+                if(buyer.Status == "Free")
                 {
-                    UserId = buyer.Id,
-                    BalanceTotal = buyerBalance.BalanceTotal - order.TotalPrice,
-                    BalanceMutation = -order.TotalPrice,
-                    Date = DateTime.Now
-                };
-                context.Balances.Add(newBalance);
-                await context.SaveChangesAsync();
-                
+                    //context.Orders.Add(order);
+
+                    var newBalance = new Balance
+                    {
+                        UserId = buyer.Id,
+                        BalanceTotal = buyerBalance.BalanceTotal - order.TotalPrice,
+                        BalanceMutation = -order.TotalPrice,
+                        Date = DateTime.Now
+                    };
+                    context.Balances.Add(newBalance);
+
+                    buyer.Status = "PENDING";
+                    context.Users.Update(buyer);
+
+                    await context.SaveChangesAsync();
+
+                    return await Task.FromResult(new TransactionStatus
+                    (
+                        true, $"Order Success! Order Fee:{order.TotalPrice.ToString()}. Waiting for Courier..."
+                    ));
+                }
                 return await Task.FromResult(new TransactionStatus
-                (
-                    true, $"Order Success! Order Fee:{order.TotalPrice.ToString()}. Waiting for Courier..."
-                ));
+                    (
+                        false, "Order Failed! Please Finish Your Last Order!"
+                    ));
             }
             else
             {
@@ -91,8 +104,11 @@ namespace OrderService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "Order not Found!"));
             }
+            var courier = context.Users.Where(o => o.Id == input.CourierId).FirstOrDefault();
             order.CourierId = input.CourierId;
-            order.Status = input.Status;
+            order.CourierLatitude = courier.Latitude;
+            order.CourierLongitude = courier.Longitude;
+            order.Status = "ACCEPTED";
 
             context.Orders.Update(order);
 
@@ -119,7 +135,7 @@ namespace OrderService.GraphQL
                 await context.SaveChangesAsync();
                 return await Task.FromResult(new TransactionStatus
             (
-                true, "User Deleted"
+                true, "Order Deleted"
             ));
             }
             order.Status = "CANCELLED";
@@ -130,7 +146,7 @@ namespace OrderService.GraphQL
 
             return await Task.FromResult(new TransactionStatus
             (
-                true, "Order Canceled"
+                true, "Order Cancelled"
             ));
         }
         //Courier Privilege
@@ -145,34 +161,40 @@ namespace OrderService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
-            var order = context.Orders.Where(o => o.Status == "PENDING").OrderByDescending(o => o.Created).FirstOrDefault();
+            var order = context.Orders.Where(o => o.Status == "PENDING").OrderBy(o => o.Created).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
 
             var courierCoord = new GeoCoordinate(courier.Latitude, courier.Longitude);
             var destiCoord = new GeoCoordinate((double)order.DestinationLatitude, (double)order.DestinationLongitude);
             var distance = courierCoord.GetDistanceTo(destiCoord)/1000;
-
-            if (distance > 25)
+            if(courier.Status == "Free")
             {
-                return await Task.FromResult(new TransactionStatus(false, "Courier too Far!"));
+                if (distance > 25)
+                {
+                    return await Task.FromResult(new TransactionStatus(false, "Courier too Far!"));
+                }
+                //update user status
+                courier.Status = "BOOKED";
+                buyer.Status = "BOOKED";
+                context.Users.Update(courier);
+                context.Users.Update(buyer);
+                //update order
+                order.CourierId = courier.Id;
+                order.CourierLatitude = courier.Latitude;
+                order.CourierLongitude = courier.Longitude;
+                order.Status = "ACCEPTED";
+
+                context.Orders.Update(order);
+                await context.SaveChangesAsync();
+
+                return await Task.FromResult(new TransactionStatus
+                (
+                    true, "Order Accepted!"
+                ));
             }
-            //update user status
-            courier.Status = "BOOKED";
-            buyer.Status = "BOOKED";
-            context.Users.Update(courier);
-            context.Users.Update(buyer);
-            //update order
-            order.CourierId = courier.Id;
-            order.CourierLatitude = courier.Latitude;
-            order.CourierLongitude = courier.Longitude;
-            order.Status = "ACCEPTED";
-
-            context.Orders.Update(order);
-            await context.SaveChangesAsync();
-
             return await Task.FromResult(new TransactionStatus
             (
-                true, "Order Accepted!"
+                false, "Order Failed! Please Finish Your Last Order!"
             ));
         }
 
@@ -190,7 +212,7 @@ namespace OrderService.GraphQL
                 return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
 
-            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId == courier.Id && o.BuyerId == id).FirstOrDefault();
+            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId == courier.Id && o.Id == id).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
 
             if (order == null)
@@ -201,11 +223,10 @@ namespace OrderService.GraphQL
 
             order.CourierLatitude = input.CourierLatitude;
             order.CourierLongitude = input.CourierLongitude;
+            order.Status = "SENDING";
             context.Orders.Update(order);
 
             await context.SaveChangesAsync();
-
-            var courierBalance = context.Balances.Where(o => o.UserId == courier.Id).OrderByDescending(o => o.Date).FirstOrDefault();
 
             return await Task.FromResult(new TransactionStatus
             (
@@ -226,7 +247,7 @@ namespace OrderService.GraphQL
                 return await Task.FromResult(new TransactionStatus(false, "Courier not Found!"));
             }
 
-            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId==courier.Id && o.BuyerId == id).FirstOrDefault();
+            var order = context.Orders.Where(o => o.Status == "ACCEPTED" && o.CourierId==courier.Id && o.Id == id).FirstOrDefault();
             var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
 
             if (order==null)
@@ -242,15 +263,36 @@ namespace OrderService.GraphQL
             order.Status = "FINISHED";
             context.Orders.Update(order);
 
+            var courierBalance = context.Balances.Where(o => o.UserId == courier.Id).OrderByDescending(o => o.Date).FirstOrDefault();
+            if (courierBalance == null)
+            {
+                var newBalance = new Balance
+                {
+                    UserId = courier.Id,
+                    BalanceTotal = order.TotalPrice,
+                    BalanceMutation = order.TotalPrice,
+                    Date = DateTime.Now
+                };
+                context.Balances.Add(newBalance);
+            }
+            else
+            {
+                var addBalance = new Balance
+                {
+                    UserId = courier.Id,
+                    BalanceTotal = courierBalance.BalanceTotal + order.TotalPrice,
+                    BalanceMutation = order.TotalPrice,
+                    Date = DateTime.Now
+                };
+                context.Balances.Add(addBalance);
+            }
             await context.SaveChangesAsync();
-
-            var courierBalance = context.Balances.Where(o => o.UserId == courier.Id).OrderByDescending( o => o.Date).FirstOrDefault();
-
             return await Task.FromResult(new TransactionStatus
             (
                 true, "Order Finished!"
             ));
         }
+
         [Authorize(Roles = new[] { "BUYER", "COURIER" })]
         public async Task<TransactionStatus> CancelOrderAsync(
             int id,
@@ -262,6 +304,9 @@ namespace OrderService.GraphQL
             var user = context.Users.Where(o => o.Username == userName).FirstOrDefault();
             
             var order = context.Orders.Where(o => o.Id == id).FirstOrDefault();
+            var buyer = context.Users.Where(o => o.Id == order.BuyerId).FirstOrDefault();
+            var buyerBalance = context.Balances.Where(o => o.UserId == buyer.Id).OrderBy(o => o.Id).LastOrDefault();
+
             if (order == null)
             {
                 return await Task.FromResult(new TransactionStatus(false, "Order not Found!"));
@@ -277,14 +322,18 @@ namespace OrderService.GraphQL
                     }
                     if (userRole.Value == "COURIER")
                     {
-                        order.Status = "CANCELLED BY COURIER";
+                        order.Status = "CANCELLED BY COURIER. LOOKING FOR ANOTHER COURIER....";
                         context.Orders.Update(order);
                     }
-                    var buyer = context.Users.Where(o => o.UserRoles.Equals(userRole.Value == "BUYER")).FirstOrDefault();
+
                     var newBalance = new Balance
                     {
-                        UserId = user.Id,
+                        UserId = buyer.Id,
+                        BalanceTotal = buyerBalance.BalanceTotal + order.TotalPrice,
+                        BalanceMutation = order.TotalPrice,
+                        Date = DateTime.Now
                     };
+                    context.Balances.Add(newBalance);  
                     await context.SaveChangesAsync();
                     return await Task.FromResult(new TransactionStatus
                     (

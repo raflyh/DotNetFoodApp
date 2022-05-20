@@ -3,7 +3,6 @@
     public record UpdateOrder
     (
         int? Id,
-        int? CourierId,
-        string Status
+        int CourierId
     );
 }
