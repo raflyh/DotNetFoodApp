@@ -30,7 +30,7 @@ namespace UserService.Models
 //            if (!optionsBuilder.IsConfigured)
 //            {
 //#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-//                optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS;Database=DotNetFoodDb;uid=rafly;pwd=1234;");
+//                optionsBuilder.UseSqlServer("Server=host.docker.internal,1433;Database=DotNetFoodDb;uid=rafly;pwd=R4fly@P4ssw0rd;");
 //            }
         }
 
@@ -39,8 +39,6 @@ namespace UserService.Models
             modelBuilder.Entity<Balance>(entity =>
             {
                 entity.ToTable("Balance");
-
-                entity.HasIndex(e => e.UserId, "IX_Balance_UserId");
 
                 entity.Property(e => e.Date).HasColumnType("datetime");
 
@@ -60,8 +58,6 @@ namespace UserService.Models
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.ToTable("Order");
-
-                entity.HasIndex(e => e.BuyerId, "IX_Order_UserId");
 
                 entity.Property(e => e.Code).HasMaxLength(50);
 
@@ -103,8 +99,6 @@ namespace UserService.Models
             {
                 entity.ToTable("Profile");
 
-                entity.HasIndex(e => e.UserId, "IX_Profile_UserId");
-
                 entity.Property(e => e.Address).HasMaxLength(50);
 
                 entity.Property(e => e.Name).HasMaxLength(50);
@@ -144,10 +138,6 @@ namespace UserService.Models
             modelBuilder.Entity<UserRole>(entity =>
             {
                 entity.ToTable("UserRole");
-
-                entity.HasIndex(e => e.RoleId, "IX_UserRole_RoleId");
-
-                entity.HasIndex(e => e.UserId, "IX_UserRole_UserId");
 
                 entity.HasOne(d => d.Role)
                     .WithMany(p => p.UserRoles)

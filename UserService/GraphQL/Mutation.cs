@@ -65,10 +65,9 @@ namespace UserService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
             }
-            var userRole = context.UserRoles.Where(m => m.UserId == user.Id).FirstOrDefault();
+           // var userRole = context.UserRoles.Where(m => m.UserId == user.Id).FirstOrDefault();
             var newUserRole = new UserRole
             {
-                Id = userRole.Id,
                 UserId = user.Id,
                 RoleId = input.RoleId
             };

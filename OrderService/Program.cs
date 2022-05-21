@@ -7,7 +7,7 @@ using OrderService.Settings;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-var conString = builder.Configuration.GetConnectionString("LocalDatabase");
+var conString = builder.Configuration.GetConnectionString("MyDatabase");
 builder.Services.AddDbContext<DotNetFoodDbContext>(options =>
      options.UseSqlServer(conString)
 );

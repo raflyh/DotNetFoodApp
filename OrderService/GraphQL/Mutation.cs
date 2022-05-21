@@ -102,20 +102,28 @@ namespace OrderService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "Order not Found!"));
             }
-            var courier = context.Users.Where(o => o.Id == input.CourierId).FirstOrDefault();
-            order.CourierId = input.CourierId;
-            order.CourierLatitude = courier.Latitude;
-            order.CourierLongitude = courier.Longitude;
-            order.Status = "ACCEPTED";
+            var roleCourier = context.Roles.Where(o => o.Name == "COURIER").FirstOrDefault();
+            var courier = context.Users.Where(o => o.Id == input.CourierId && o.UserRoles.Any(o => o.RoleId == roleCourier.Id)).FirstOrDefault();
+            if (courier != null)
+            {
+                order.CourierId = input.CourierId;
+                order.CourierLatitude = courier.Latitude;
+                order.CourierLongitude = courier.Longitude;
+                order.Status = "ACCEPTED";
 
-            context.Orders.Update(order);
+                context.Orders.Update(order);
 
-            await context.SaveChangesAsync();
+                await context.SaveChangesAsync();
 
+                return await Task.FromResult(new TransactionStatus
+                (
+                    true, "Order Updated"
+                ));
+            }
             return await Task.FromResult(new TransactionStatus
-            (
-                true, "Order Updated"
-            ));
+                (
+                    false, "Update Failed! Courier not Found!"
+                ));
         }
 
         [Authorize(Roles = new[] {"MANAGER"})]
@@ -318,34 +326,41 @@ namespace OrderService.GraphQL
             {
                 if (userRole != null)
                 {
-                    if (userRole.Value == "BUYER")
+                    if (order.Status!= "FINISHED")
                     {
-                        order.Status = "CANCELLED BY BUYER";
-                        context.Orders.Update(order);
-                    }
-                    if (userRole.Value == "COURIER")
-                    {
-                        order.Status = "CANCELLED BY COURIER. LOOKING FOR ANOTHER COURIER....";
-                        context.Orders.Update(order);
-                    }
-                    buyer.Status = "Free";
-                    courier.Status = "Free";
-                    context.Users.Update(buyer);
-                    context.Users.Update(courier);
+                        if (userRole.Value == "BUYER")
+                        {
+                            order.Status = "CANCELLED BY BUYER";
+                            context.Orders.Update(order);
+                        }
+                        if (userRole.Value == "COURIER")
+                        {
+                            order.Status = "CANCELLED BY COURIER. LOOKING FOR ANOTHER COURIER....";
+                            context.Orders.Update(order);
+                        }
+                        buyer.Status = "Free";
+                        courier.Status = "Free";
+                        context.Users.Update(buyer);
+                        context.Users.Update(courier);
 
-                    var newBalance = new Balance
-                    {
-                        UserId = buyer.Id,
-                        BalanceTotal = buyerBalance.BalanceTotal + order.TotalPrice,
-                        BalanceMutation = order.TotalPrice,
-                        Date = DateTime.Now
-                    };
-                    context.Balances.Add(newBalance);  
-                    await context.SaveChangesAsync();
+                        var newBalance = new Balance
+                        {
+                            UserId = buyer.Id,
+                            BalanceTotal = buyerBalance.BalanceTotal + order.TotalPrice,
+                            BalanceMutation = order.TotalPrice,
+                            Date = DateTime.Now
+                        };
+                        context.Balances.Add(newBalance);
+                        await context.SaveChangesAsync();
+                        return await Task.FromResult(new TransactionStatus
+                        (
+                            true, "Order CancelLed! Balance Refunded!"
+                        ));
+                    }
                     return await Task.FromResult(new TransactionStatus
-                    (
-                        true, "Order CancelLed! Balance Refunded!"
-                    ));
+                        (
+                            false, "Order Finished!"
+                        ));
                 }
             }
             return await Task.FromResult(new TransactionStatus
