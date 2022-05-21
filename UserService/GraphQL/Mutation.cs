@@ -65,19 +65,16 @@ namespace UserService.GraphQL
             {
                 return await Task.FromResult(new TransactionStatus(false, "User not Found!"));
             }
-           // var userRole = context.UserRoles.Where(m => m.UserId == user.Id).FirstOrDefault();
-            var newUserRole = new UserRole
-            {
-                UserId = user.Id,
-                RoleId = input.RoleId
-            };
-            context.UserRoles.Add(newUserRole);
+            var userRole = context.UserRoles.Where(m => m.UserId == user.Id).FirstOrDefault();
+
+            userRole.RoleId = input.RoleId;
+            context.UserRoles.Update(userRole);
 
             await context.SaveChangesAsync();
 
             return await Task.FromResult(new TransactionStatus
             (
-                true, "Role Added"
+                true, "Role Updated"
             ));
         }
 
